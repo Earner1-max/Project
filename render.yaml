@@ -1,20 +1,15 @@
+# Exported from Render on 2025-05-30T13:45:45Z
 services:
-  - type: web
-    name: telegram-bot-admin
-    env: python
-    plan: free
-    buildCommand: pip install aiogram flask requests
-    startCommand: python admin_app.py
-    envVars:
-      - key: BOT_TOKEN
-        sync: false
-    
-  - type: worker
-    name: telegram-bot
-    env: python
-    plan: free
-    buildCommand: pip install aiogram flask requests
-    startCommand: python main.py
-    envVars:
-      - key: BOT_TOKEN
-        sync: false
+- type: web
+  name: telegram-bot-admin
+  runtime: python
+  repo: https://github.com/Earner1-max/Project
+  plan: free
+  envVars:
+  - key: BOT_TOKEN
+    sync: false
+  region: oregon
+  buildCommand: pip install aiogram flask requests
+  startCommand: python admin_app.py
+  autoDeployTrigger: commit
+version: "1"
