@@ -1,0 +1,354 @@
+{% extends "base.html" %}
+
+{% block title %}Code Editor - Bot Admin Panel{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Code Editor</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <button type="button" class="btn btn-success" onclick="saveFile()" id="save-btn">
+                <i class="fas fa-save"></i> Save File
+            </button>
+            <button type="button" class="btn btn-warning" onclick="restartBot()" id="restart-btn">
+                <i class="fas fa-sync-alt"></i> Restart Bot
+            </button>
+            <a href="{{ url_for('dashboard') }}" class="btn btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Dashboard
+            </a>
+        </div>
+    </div>
+</div>
+
+<!-- File Selection and Status -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-file-code"></i> Select File to Edit
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    {% for file in files %}
+                    <div class="col-md-4 mb-2">
+                        <button class="btn btn-outline-primary btn-block file-btn" onclick="loadFile('{{ file }}')">
+                            <i class="fas fa-file-code"></i> {{ file }}
+                        </button>
+                    </div>
+                    {% endfor %}
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-info text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-info-circle"></i> File Status
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-2">
+                    <strong>Current File:</strong>
+                    <span id="current-file" class="text-muted">None selected</span>
+                </div>
+                <div class="mb-2">
+                    <strong>Status:</strong>
+                    <span id="file-status" class="badge badge-secondary">Ready</span>
+                </div>
+                <div class="mb-2">
+                    <strong>Lines:</strong>
+                    <span id="line-count" class="text-muted">0</span>
+                </div>
+                <div class="mb-2">
+                    <strong>Modified:</strong>
+                    <span id="modified-status" class="text-muted">No</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Code Editor -->
+<div class="card">
+    <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+        <h5 class="mb-0">
+            <i class="fas fa-code"></i> Code Editor
+        </h5>
+        <div>
+            <button class="btn btn-sm btn-outline-light" onclick="formatCode()">
+                <i class="fas fa-indent"></i> Format
+            </button>
+            <button class="btn btn-sm btn-outline-light" onclick="toggleFullscreen()">
+                <i class="fas fa-expand"></i> Fullscreen
+            </button>
+        </div>
+    </div>
+    <div class="card-body p-0">
+        <div id="editor-container" style="height: 600px; border: none;">
+            <textarea id="code-editor" class="form-control" style="height: 100%; font-family: 'Courier New', monospace; font-size: 14px; border: none; resize: none;" placeholder="Select a file to start editing..."></textarea>
+        </div>
+    </div>
+    <div class="card-footer">
+        <div class="row">
+            <div class="col-md-6">
+                <small class="text-muted">
+                    <i class="fas fa-lightbulb"></i> 
+                    Tip: Changes are automatically backed up before saving
+                </small>
+            </div>
+            <div class="col-md-6 text-right">
+                <small class="text-muted">
+                    Last saved: <span id="last-saved">Never</span>
+                </small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Bot Logs (Real-time) -->
+<div class="card mt-4">
+    <div class="card-header bg-secondary text-white">
+        <h5 class="mb-0">
+            <i class="fas fa-terminal"></i> Bot Status & Logs
+        </h5>
+    </div>
+    <div class="card-body">
+        <div id="bot-logs" style="height: 200px; overflow-y: auto; background: #f8f9fa; padding: 10px; font-family: monospace; font-size: 12px;">
+            <div class="text-muted">Bot logs will appear here...</div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let currentFile = null;
+let isModified = false;
+let editorFullscreen = false;
+
+function loadFile(filename) {
+    fetch(`/api/get-file/${filename}`)
+        .then(response => response.json())
+        .then(data => {
+            if (data.success) {
+                document.getElementById('code-editor').value = data.content;
+                currentFile = filename;
+                updateFileStatus(filename, 'Loaded', false);
+                updateLineCount();
+                
+                // Update UI
+                document.querySelectorAll('.file-btn').forEach(btn => {
+                    btn.classList.remove('btn-primary');
+                    btn.classList.add('btn-outline-primary');
+                });
+                event.target.classList.remove('btn-outline-primary');
+                event.target.classList.add('btn-primary');
+            } else {
+                alert('Error loading file: ' + data.error);
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+            alert('Error loading file');
+        });
+}
+
+function saveFile() {
+    if (!currentFile) {
+        alert('No file selected');
+        return;
+    }
+    
+    const content = document.getElementById('code-editor').value;
+    const saveBtn = document.getElementById('save-btn');
+    
+    saveBtn.disabled = true;
+    saveBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Saving...';
+    
+    fetch(`/api/save-file/${currentFile}`, {
+        method: 'POST',
+        headers: {
+            'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ content: content })
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            updateFileStatus(currentFile, 'Saved', false);
+            document.getElementById('last-saved').textContent = new Date().toLocaleTimeString();
+            showNotification('File saved successfully!', 'success');
+        } else {
+            alert('Error saving file: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error saving file');
+    })
+    .finally(() => {
+        saveBtn.disabled = false;
+        saveBtn.innerHTML = '<i class="fas fa-save"></i> Save File';
+    });
+}
+
+function restartBot() {
+    const restartBtn = document.getElementById('restart-btn');
+    
+    if (!confirm('Are you sure you want to restart the bot? This will apply your changes.')) {
+        return;
+    }
+    
+    restartBtn.disabled = true;
+    restartBtn.innerHTML = '<i class="fas fa-spinner fa-spin"></i> Restarting...';
+    
+    fetch('/api/restart-bot', {
+        method: 'POST'
+    })
+    .then(response => response.json())
+    .then(data => {
+        if (data.success) {
+            showNotification('Bot restarted successfully!', 'success');
+            updateBotLogs('Bot restarted at ' + new Date().toLocaleTimeString());
+        } else {
+            alert('Error restarting bot: ' + data.error);
+        }
+    })
+    .catch(error => {
+        console.error('Error:', error);
+        alert('Error restarting bot');
+    })
+    .finally(() => {
+        restartBtn.disabled = false;
+        restartBtn.innerHTML = '<i class="fas fa-sync-alt"></i> Restart Bot';
+    });
+}
+
+function updateFileStatus(filename, status, modified) {
+    document.getElementById('current-file').textContent = filename;
+    document.getElementById('file-status').textContent = status;
+    document.getElementById('file-status').className = `badge badge-${status === 'Saved' ? 'success' : status === 'Loaded' ? 'info' : 'secondary'}`;
+    document.getElementById('modified-status').textContent = modified ? 'Yes' : 'No';
+    isModified = modified;
+}
+
+function updateLineCount() {
+    const content = document.getElementById('code-editor').value;
+    const lines = content.split('\n').length;
+    document.getElementById('line-count').textContent = lines;
+}
+
+function formatCode() {
+    // Simple code formatting (basic indentation)
+    const editor = document.getElementById('code-editor');
+    let content = editor.value;
+    
+    // Basic Python formatting
+    const lines = content.split('\n');
+    let indentLevel = 0;
+    const formatted = lines.map(line => {
+        const trimmed = line.trim();
+        if (trimmed.endsWith(':')) {
+            const result = '    '.repeat(indentLevel) + trimmed;
+            indentLevel++;
+            return result;
+        } else if (trimmed === '' || trimmed.startsWith('#')) {
+            return trimmed;
+        } else if (trimmed.startsWith('def ') || trimmed.startsWith('class ') || trimmed.startsWith('if ') || trimmed.startsWith('elif ') || trimmed.startsWith('else:') || trimmed.startsWith('try:') || trimmed.startsWith('except') || trimmed.startsWith('finally:') || trimmed.startsWith('with ') || trimmed.startsWith('for ') || trimmed.startsWith('while ')) {
+            if (indentLevel > 0) indentLevel--;
+            return '    '.repeat(indentLevel) + trimmed;
+        } else {
+            return '    '.repeat(indentLevel) + trimmed;
+        }
+    }).join('\n');
+    
+    editor.value = formatted;
+    updateLineCount();
+    updateFileStatus(currentFile, 'Modified', true);
+}
+
+function toggleFullscreen() {
+    const container = document.getElementById('editor-container');
+    const editor = document.getElementById('code-editor');
+    
+    if (!editorFullscreen) {
+        container.style.position = 'fixed';
+        container.style.top = '0';
+        container.style.left = '0';
+        container.style.width = '100vw';
+        container.style.height = '100vh';
+        container.style.zIndex = '9999';
+        container.style.background = 'white';
+        editor.style.height = '100vh';
+        editorFullscreen = true;
+    } else {
+        container.style.position = 'relative';
+        container.style.top = 'auto';
+        container.style.left = 'auto';
+        container.style.width = 'auto';
+        container.style.height = '600px';
+        container.style.zIndex = 'auto';
+        editor.style.height = '100%';
+        editorFullscreen = false;
+    }
+}
+
+function showNotification(message, type) {
+    const notification = document.createElement('div');
+    notification.className = `alert alert-${type} alert-dismissible fade show`;
+    notification.style.position = 'fixed';
+    notification.style.top = '20px';
+    notification.style.right = '20px';
+    notification.style.zIndex = '10000';
+    notification.innerHTML = `
+        ${message}
+        <button type="button" class="close" onclick="this.parentElement.remove()">
+            <span>&times;</span>
+        </button>
+    `;
+    document.body.appendChild(notification);
+    
+    setTimeout(() => {
+        if (notification.parentElement) {
+            notification.remove();
+        }
+    }, 5000);
+}
+
+function updateBotLogs(message) {
+    const logs = document.getElementById('bot-logs');
+    const timestamp = new Date().toLocaleTimeString();
+    logs.innerHTML += `<div><span class="text-muted">[${timestamp}]</span> ${message}</div>`;
+    logs.scrollTop = logs.scrollHeight;
+}
+
+// Track changes
+document.getElementById('code-editor').addEventListener('input', function() {
+    if (currentFile && !isModified) {
+        updateFileStatus(currentFile, 'Modified', true);
+    }
+    updateLineCount();
+});
+
+// Keyboard shortcuts
+document.addEventListener('keydown', function(e) {
+    if (e.ctrlKey || e.metaKey) {
+        if (e.key === 's') {
+            e.preventDefault();
+            saveFile();
+        } else if (e.key === 'f') {
+            e.preventDefault();
+            toggleFullscreen();
+        }
+    }
+});
+
+// Initialize
+document.addEventListener('DOMContentLoaded', function() {
+    updateBotLogs('Code editor initialized');
+});
+</script>
+{% endblock %}

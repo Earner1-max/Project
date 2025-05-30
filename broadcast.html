@@ -1,0 +1,236 @@
+{% extends "base.html" %}
+
+{% block title %}Announcements - Bot Admin Panel{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">📢 Send Announcements</h1>
+</div>
+
+<div class="row">
+    <div class="col-lg-8">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-bullhorn"></i> Create New Announcement
+                </h5>
+            </div>
+            <div class="card-body">
+                <form method="POST" action="{{ url_for('send_broadcast') }}" enctype="multipart/form-data" id="announcementForm">
+                    <!-- Announcement Type Selection -->
+                    <div class="mb-4">
+                        <label class="form-label">Announcement Type</label>
+                        <div class="btn-group d-flex" role="group">
+                            <input type="radio" class="btn-check" name="type" id="textType" value="text" checked>
+                            <label class="btn btn-outline-primary" for="textType">
+                                <i class="fas fa-comment"></i> Text Only
+                            </label>
+                            
+                            <input type="radio" class="btn-check" name="type" id="imageType" value="image">
+                            <label class="btn btn-outline-primary" for="imageType">
+                                <i class="fas fa-image"></i> With Image
+                            </label>
+                        </div>
+                    </div>
+                    
+                    <!-- Image Upload Section -->
+                    <div class="mb-3" id="imageSection" style="display: none;">
+                        <label for="image" class="form-label">Upload Image</label>
+                        <input class="form-control" type="file" id="image" name="image" accept="image/*">
+                        <div class="form-text">
+                            Supported formats: JPG, PNG, GIF. Max size: 10MB
+                        </div>
+                        <div id="imagePreview" class="mt-2"></div>
+                    </div>
+                    
+                    <div class="mb-3">
+                        <label for="message" class="form-label">Announcement Message</label>
+                        <textarea class="form-control" id="message" name="message" rows="6" 
+                                  placeholder="Enter your announcement message here..." required></textarea>
+                        <div class="form-text">
+                            You can use HTML formatting: &lt;b&gt;bold&lt;/b&gt;, &lt;i&gt;italic&lt;/i&gt;, &lt;a href="link"&gt;links&lt;/a&gt;
+                        </div>
+                    </div>
+                    
+                    <!-- Preview Section -->
+                    <div class="mb-3">
+                        <div class="card bg-light">
+                            <div class="card-header py-2">
+                                <small class="text-muted">Preview:</small>
+                            </div>
+                            <div class="card-body py-2">
+                                <div id="messagePreview" class="small">
+                                    📢 <strong>ANNOUNCEMENT</strong> 📢<br><br>
+                                    <em>Your message will appear here...</em>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div class="d-flex justify-content-between">
+                        <button type="button" class="btn btn-outline-secondary" onclick="clearForm()">
+                            <i class="fas fa-eraser"></i> Clear
+                        </button>
+                        <button type="submit" class="btn btn-success" onclick="return confirmSend()">
+                            <i class="fas fa-bullhorn"></i> Send Announcement
+                        </button>
+                    </div>
+                </form>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-4">
+        <div class="card">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-info-circle"></i> Announcement Stats
+                </h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-6">
+                        <div class="border-end">
+                            <h4 class="text-primary mb-0" id="totalUsers">0</h4>
+                            <small class="text-muted">Total Users</small>
+                        </div>
+                    </div>
+                    <div class="col-6">
+                        <h4 class="text-success mb-0">100%</h4>
+                        <small class="text-muted">Delivery Rate</small>
+                    </div>
+                </div>
+                
+                <hr>
+                
+                <h6 class="mb-2">📝 Guidelines:</h6>
+                <ul class="small mb-3">
+                    <li>Keep messages clear and concise</li>
+                    <li>Use proper formatting for readability</li>
+                    <li>Include call-to-action if needed</li>
+                    <li>Test image size before sending</li>
+                </ul>
+                
+                <h6 class="mb-2">🎨 HTML Formatting:</h6>
+                <div class="small">
+                    <code>&lt;b&gt;</code> Bold text<br>
+                    <code>&lt;i&gt;</code> Italic text<br>
+                    <code>&lt;u&gt;</code> Underlined text<br>
+                    <code>&lt;a href="url"&gt;</code> Links
+                </div>
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">
+                    <i class="fas fa-clock"></i> Recent Activity
+                </h6>
+            </div>
+            <div class="card-body">
+                <p class="small text-muted mb-0">
+                    Last announcement: <span id="lastAnnouncement">Never</span>
+                </p>
+            </div>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+document.addEventListener('DOMContentLoaded', function() {
+    const textType = document.getElementById('textType');
+    const imageType = document.getElementById('imageType');
+    const imageSection = document.getElementById('imageSection');
+    const messageInput = document.getElementById('message');
+    const messagePreview = document.getElementById('messagePreview');
+    const imageInput = document.getElementById('image');
+    const imagePreview = document.getElementById('imagePreview');
+    
+    // Load stats
+    loadStats();
+    
+    // Toggle image section
+    function toggleImageSection() {
+        if (imageType.checked) {
+            imageSection.style.display = 'block';
+        } else {
+            imageSection.style.display = 'none';
+            imageInput.value = '';
+            imagePreview.innerHTML = '';
+        }
+    }
+    
+    textType.addEventListener('change', toggleImageSection);
+    imageType.addEventListener('change', toggleImageSection);
+    
+    // Preview message
+    messageInput.addEventListener('input', function() {
+        const message = this.value || 'Your message will appear here...';
+        messagePreview.innerHTML = '📢 <strong>ANNOUNCEMENT</strong> 📢<br><br>' + 
+                                  (this.value ? message.replace(/\n/g, '<br>') : '<em>' + message + '</em>');
+    });
+    
+    // Preview image
+    imageInput.addEventListener('change', function() {
+        const file = this.files[0];
+        if (file) {
+            const reader = new FileReader();
+            reader.onload = function(e) {
+                imagePreview.innerHTML = `
+                    <img src="${e.target.result}" class="img-thumbnail" style="max-width: 200px; max-height: 150px;">
+                    <div class="mt-1 small text-muted">File: ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)</div>
+                `;
+            };
+            reader.readAsDataURL(file);
+        } else {
+            imagePreview.innerHTML = '';
+        }
+    });
+});
+
+function loadStats() {
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            if (!data.error) {
+                document.getElementById('totalUsers').textContent = data.total_users || 0;
+            }
+        })
+        .catch(error => {
+            console.error('Error loading stats:', error);
+        });
+}
+
+function clearForm() {
+    document.getElementById('announcementForm').reset();
+    document.getElementById('messagePreview').innerHTML = '📢 <strong>ANNOUNCEMENT</strong> 📢<br><br><em>Your message will appear here...</em>';
+    document.getElementById('imagePreview').innerHTML = '';
+    document.getElementById('imageSection').style.display = 'none';
+}
+
+function confirmSend() {
+    const message = document.getElementById('message').value;
+    if (!message.trim()) {
+        alert('Please enter a message first.');
+        return false;
+    }
+    
+    const confirmed = confirm('Are you sure you want to send this announcement to all users? This action cannot be undone.');
+    
+    if (confirmed) {
+        // Store timestamp for last announcement
+        localStorage.setItem('lastAnnouncementTime', new Date().toISOString());
+    }
+    
+    return confirmed;
+}
+
+// Update last announcement time when page loads
+if (localStorage.getItem('lastAnnouncementTime')) {
+    document.getElementById('lastAnnouncement').textContent = 
+        new Date(localStorage.getItem('lastAnnouncementTime')).toLocaleString();
+}
+</script>
+{% endblock %}

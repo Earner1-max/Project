@@ -1,0 +1,162 @@
+{% extends "base.html" %}
+
+{% block title %}User Details - Bot Admin Panel{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">User Details</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('users_list') }}" class="btn btn-sm btn-outline-secondary">
+                <i class="fas fa-arrow-left"></i> Back to Users
+            </a>
+        </div>
+    </div>
+</div>
+
+{% if user %}
+<div class="row">
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-user"></i> User Information
+                </h5>
+            </div>
+            <div class="card-body">
+                <dl class="row">
+                    <dt class="col-sm-4">User ID:</dt>
+                    <dd class="col-sm-8"><code>{{ user[0] }}</code></dd>
+                    
+                    <dt class="col-sm-4">Username:</dt>
+                    <dd class="col-sm-8">
+                        {% if user[1] %}
+                            <span class="badge bg-info">@{{ user[1] }}</span>
+                        {% else %}
+                            <span class="text-muted">No username</span>
+                        {% endif %}
+                    </dd>
+                    
+                    <dt class="col-sm-4">Full Name:</dt>
+                    <dd class="col-sm-8">{{ user[2] }}</dd>
+                    
+                    <dt class="col-sm-4">Balance:</dt>
+                    <dd class="col-sm-8">
+                        <span class="badge bg-success fs-6">${{ "%.2f"|format(user[3]) }} USDT</span>
+                    </dd>
+                    
+                    <dt class="col-sm-4">Joined:</dt>
+                    <dd class="col-sm-8">{{ user[4] }}</dd>
+                    
+                    <dt class="col-sm-4">Wallet Address:</dt>
+                    <dd class="col-sm-8">
+                        {% if user[5] %}
+                            <small class="text-break">{{ user[5] }}</small>
+                        {% else %}
+                            <span class="text-muted">No wallet set</span>
+                        {% endif %}
+                    </dd>
+                    
+                    <dt class="col-sm-4">Referrer:</dt>
+                    <dd class="col-sm-8">
+                        {% if user[6] %}
+                            <a href="{{ url_for('user_detail', user_id=user[6]) }}" class="btn btn-sm btn-outline-primary">
+                                View Referrer ({{ user[6] }})
+                            </a>
+                        {% else %}
+                            <span class="text-muted">Direct signup</span>
+                        {% endif %}
+                    </dd>
+                </dl>
+            </div>
+        </div>
+    </div>
+    
+    <div class="col-lg-6">
+        <div class="card">
+            <div class="card-header">
+                <h5 class="mb-0">
+                    <i class="fas fa-users"></i> Referrals ({{ referrals|length }})
+                </h5>
+            </div>
+            <div class="card-body">
+                {% if referrals %}
+                    <div class="table-responsive">
+                        <table class="table table-sm">
+                            <thead>
+                                <tr>
+                                    <th>User ID</th>
+                                    <th>Username</th>
+                                    <th>Name</th>
+                                    <th>Joined</th>
+                                    <th>Action</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                {% for referral in referrals %}
+                                <tr>
+                                    <td><code>{{ referral[0] }}</code></td>
+                                    <td>
+                                        {% if referral[1] %}
+                                            @{{ referral[1] }}
+                                        {% else %}
+                                            <span class="text-muted">-</span>
+                                        {% endif %}
+                                    </td>
+                                    <td>{{ referral[2] }}</td>
+                                    <td><small>{{ referral[3] }}</small></td>
+                                    <td>
+                                        <a href="{{ url_for('user_detail', user_id=referral[0]) }}" class="btn btn-xs btn-outline-primary">
+                                            View
+                                        </a>
+                                    </td>
+                                </tr>
+                                {% endfor %}
+                            </tbody>
+                        </table>
+                    </div>
+                {% else %}
+                    <div class="text-center py-3">
+                        <i class="fas fa-user-friends fa-2x text-muted mb-2"></i>
+                        <p class="text-muted">No referrals yet</p>
+                    </div>
+                {% endif %}
+            </div>
+        </div>
+        
+        <div class="card mt-3">
+            <div class="card-header">
+                <h6 class="mb-0">Quick Stats</h6>
+            </div>
+            <div class="card-body">
+                <div class="row text-center">
+                    <div class="col-4">
+                        <div class="h4 text-primary">{{ referrals|length }}</div>
+                        <small class="text-muted">Referrals</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="h4 text-success">${{ "%.2f"|format(user[3]) }}</div>
+                        <small class="text-muted">Balance</small>
+                    </div>
+                    <div class="col-4">
+                        <div class="h4 text-info">${{ "%.2f"|format(referrals|length * 0.1) }}</div>
+                        <small class="text-muted">Earned from Refs</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+{% else %}
+<div class="card">
+    <div class="card-body text-center py-5">
+        <i class="fas fa-user-slash fa-3x text-muted mb-3"></i>
+        <h5 class="text-muted">User not found</h5>
+        <p class="text-muted">The requested user could not be found in the database.</p>
+        <a href="{{ url_for('users_list') }}" class="btn btn-primary">
+            <i class="fas fa-users"></i> View All Users
+        </a>
+    </div>
+</div>
+{% endif %}
+{% endblock %}

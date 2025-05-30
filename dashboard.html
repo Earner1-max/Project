@@ -1,0 +1,440 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Bot Admin Panel{% endblock %}
+
+{% block content %}
+<div class="d-flex justify-content-between flex-wrap flex-md-nowrap align-items-center pt-3 pb-2 mb-3 border-bottom">
+    <h1 class="h2">Dashboard</h1>
+    <div class="btn-toolbar mb-2 mb-md-0">
+        <div class="btn-group me-2">
+            <a href="{{ url_for('broadcast_page') }}" class="btn btn-primary">
+                <i class="fas fa-bullhorn"></i> Send Announcement
+            </a>
+            <button type="button" class="btn btn-outline-secondary" onclick="refreshStats()">
+                <i class="fas fa-sync-alt"></i> Refresh
+            </button>
+        </div>
+    </div>
+</div>
+
+<!-- Statistics Cards -->
+<div class="row mb-4">
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Total Users</div>
+                        <div class="h5 mb-0 font-weight-bold">{{ stats.total_users or 0 }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-users fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card-green h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Total USDT Distributed</div>
+                        <div class="h5 mb-0 font-weight-bold">${{ stats.total_balance or 0 }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-dollar-sign fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card-orange h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Total Referrals</div>
+                        <div class="h5 mb-0 font-weight-bold">{{ stats.total_referrals or 0 }}</div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-user-friends fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <div class="col-xl-3 col-md-6 mb-4">
+        <div class="card stat-card h-100">
+            <div class="card-body">
+                <div class="row no-gutters align-items-center">
+                    <div class="col mr-2">
+                        <div class="text-xs font-weight-bold text-uppercase mb-1">Conversion Rate</div>
+                        <div class="h5 mb-0 font-weight-bold">
+                            {% if stats.total_users and stats.total_users > 0 %}
+                                {{ "%.1f"|format((stats.total_referrals / stats.total_users) * 100) }}%
+                            {% else %}
+                                0.0%
+                            {% endif %}
+                        </div>
+                    </div>
+                    <div class="col-auto">
+                        <i class="fas fa-chart-line fa-2x opacity-75"></i>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Quick Actions -->
+<div class="row mb-4">
+    <div class="col-md-12">
+        <div class="card border-primary">
+            <div class="card-header bg-primary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-bullhorn"></i> Quick Actions
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="row">
+                    <div class="col-lg-6 mb-3">
+                        <div class="d-grid">
+                            <a href="{{ url_for('broadcast_page') }}" class="btn btn-primary btn-lg">
+                                <i class="fas fa-bullhorn"></i> Send Announcement
+                            </a>
+                        </div>
+                        <small class="text-muted">Send messages with images to all bot users</small>
+                    </div>
+                    <div class="col-lg-6 mb-3">
+                        <div class="d-grid">
+                            <a href="{{ url_for('users_list') }}" class="btn btn-outline-primary btn-lg">
+                                <i class="fas fa-users"></i> Manage Users
+                            </a>
+                        </div>
+                        <small class="text-muted">View and manage all registered users</small>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Live Activity Section -->
+<div class="row mb-4">
+    <div class="col-md-8">
+        <div class="card">
+            <div class="card-header bg-dark text-white d-flex justify-content-between align-items-center">
+                <h5 class="mb-0">
+                    <i class="fas fa-dot-circle text-danger"></i> Live User Activity
+                </h5>
+                <small id="last-update" class="text-muted">Connecting...</small>
+            </div>
+            <div class="card-body p-0">
+                <div id="activity-feed" style="max-height: 400px; overflow-y: auto;">
+                    <div class="p-3 text-center text-muted">
+                        <div class="spinner-border text-primary" role="status">
+                            <span class="sr-only">Loading...</span>
+                        </div>
+                        <p class="mt-2">Connecting to live feed...</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-md-4">
+        <div class="card">
+            <div class="card-header bg-secondary text-white">
+                <h5 class="mb-0">
+                    <i class="fas fa-chart-line"></i> Live Stats
+                </h5>
+            </div>
+            <div class="card-body">
+                <div class="mb-3">
+                    <strong>Today's Joins:</strong>
+                    <span class="badge badge-warning float-right" id="today-users">0</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Active (24h):</strong>
+                    <span class="badge badge-success float-right" id="active-users">0</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Recent (10m):</strong>
+                    <span class="badge badge-info float-right" id="recent-joins">0</span>
+                </div>
+                <div class="mb-3">
+                    <strong>Connection:</strong>
+                    <span class="badge badge-success float-right" id="connection-status">Live</span>
+                </div>
+                <div class="progress mb-2">
+                    <div class="progress-bar bg-success progress-bar-striped progress-bar-animated" 
+                         role="progressbar" style="width: 100%" id="activity-bar"></div>
+                </div>
+                <small class="text-muted">Real-time monitoring active</small>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Recent Users -->
+<div class="card">
+    <div class="card-header">
+        <h5 class="mb-0">
+            <i class="fas fa-clock"></i> Recent Users
+        </h5>
+    </div>
+    <div class="card-body">
+        {% if stats.recent_users %}
+            <div class="table-responsive">
+                <table class="table table-hover">
+                    <thead>
+                        <tr>
+                            <th>User ID</th>
+                            <th>Username</th>
+                            <th>Full Name</th>
+                            <th>Balance</th>
+                            <th>Joined</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        {% for user in stats.recent_users %}
+                        <tr>
+                            <td><code>{{ user[0] }}</code></td>
+                            <td>
+                                {% if user[1] %}
+                                    @{{ user[1] }}
+                                {% else %}
+                                    <span class="text-muted">No username</span>
+                                {% endif %}
+                            </td>
+                            <td>{{ user[2] }}</td>
+                            <td>
+                                <span class="badge bg-success">${{ "%.2f"|format(user[3]) }}</span>
+                            </td>
+                            <td>
+                                <small class="text-muted">{{ user[4] }}</small>
+                            </td>
+                            <td>
+                                <a href="{{ url_for('user_detail', user_id=user[0]) }}" class="btn btn-sm btn-outline-primary">
+                                    <i class="fas fa-eye"></i> View
+                                </a>
+                            </td>
+                        </tr>
+                        {% endfor %}
+                    </tbody>
+                </table>
+            </div>
+            <div class="text-center mt-3">
+                <a href="{{ url_for('users_list') }}" class="btn btn-primary">
+                    <i class="fas fa-users"></i> View All Users
+                </a>
+            </div>
+        {% else %}
+            <div class="text-center py-4">
+                <i class="fas fa-users fa-3x text-muted mb-3"></i>
+                <h5 class="text-muted">No users yet</h5>
+                <p class="text-muted">Users will appear here once they start using the bot.</p>
+            </div>
+        {% endif %}
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+<script>
+let lastUpdate = null;
+let connectionStatus = true;
+
+function refreshStats() {
+    fetch('/api/stats')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                console.error('Error refreshing stats:', data.error);
+            } else {
+                location.reload();
+            }
+        })
+        .catch(error => {
+            console.error('Error:', error);
+        });
+}
+
+function updateLiveStats() {
+    fetch('/api/live-users')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            // Update live stats
+            document.getElementById('today-users').textContent = data.today_users;
+            document.getElementById('active-users').textContent = data.active_users;
+            document.getElementById('recent-joins').textContent = data.recent_users.length;
+            
+            connectionStatus = true;
+            document.getElementById('connection-status').textContent = 'Live';
+            document.getElementById('connection-status').className = 'badge badge-success float-right';
+        })
+        .catch(error => {
+            console.error('Live stats error:', error);
+            connectionStatus = false;
+            document.getElementById('connection-status').textContent = 'Offline';
+            document.getElementById('connection-status').className = 'badge badge-danger float-right';
+        });
+}
+
+function updateActivityFeed() {
+    fetch('/api/activity-feed')
+        .then(response => response.json())
+        .then(data => {
+            if (data.error) {
+                throw new Error(data.error);
+            }
+            
+            const feed = document.getElementById('activity-feed');
+            const now = new Date();
+            
+            if (data.activities && data.activities.length > 0) {
+                let html = '';
+                data.activities.forEach((activity, index) => {
+                    const isNew = activity.activity_type === 'new_user';
+                    const iconClass = isNew ? 'fa-user-plus text-success' : 'fa-users text-info';
+                    const activityText = isNew ? 'New user joined' : 'Referral joined';
+                    const isRecent = activity.time_ago === 'Just now' || activity.time_ago.includes('sec');
+                    const pulseClass = isRecent ? 'pulse-animation' : '';
+                    const badgeClass = index === 0 ? 'badge-success' : (isNew ? 'badge-primary' : 'badge-info');
+                    
+                    html += `
+                        <div class="border-bottom p-3 activity-item ${pulseClass}">
+                            <div class="d-flex align-items-center">
+                                <i class="fas ${iconClass} fa-lg mr-3"></i>
+                                <div class="flex-grow-1">
+                                    <div class="d-flex justify-content-between align-items-center">
+                                        <strong>${activity.full_name}</strong>
+                                        <div>
+                                            ${isRecent ? '<span class="badge badge-warning pulse">NEW</span>' : ''}
+                                            <small class="text-muted ml-2">${activity.time_ago}</small>
+                                        </div>
+                                    </div>
+                                    <div class="text-muted">
+                                        <span class="badge ${badgeClass}">${activityText}</span>
+                                        • Balance: $${activity.balance.toFixed(2)}
+                                    </div>
+                                    <small class="text-muted">ID: ${activity.user_id}</small>
+                                </div>
+                            </div>
+                        </div>
+                    `;
+                });
+                feed.innerHTML = html;
+            } else {
+                feed.innerHTML = `
+                    <div class="p-3 text-center text-muted">
+                        <i class="fas fa-clock fa-2x mb-2"></i>
+                        <p>No recent activity</p>
+                        <small>New users will appear here within seconds</small>
+                    </div>
+                `;
+            }
+            
+            // Update last update time
+            document.getElementById('last-update').textContent = `Last update: ${now.toLocaleTimeString()}`;
+            
+        })
+        .catch(error => {
+            console.error('Activity feed error:', error);
+            document.getElementById('activity-feed').innerHTML = `
+                <div class="p-3 text-center text-danger">
+                    <i class="fas fa-exclamation-triangle fa-2x mb-2"></i>
+                    <p>Connection error</p>
+                    <small>Trying to reconnect...</small>
+                </div>
+            `;
+        });
+}
+
+function startLiveMonitoring() {
+    // Initial load
+    updateLiveStats();
+    updateActivityFeed();
+    
+    // Update every 3 seconds for real-time monitoring
+    setInterval(() => {
+        updateLiveStats();
+        updateActivityFeed();
+    }, 3000);
+    
+    console.log('Live monitoring started - updating every 3 seconds');
+}
+
+// Start live monitoring when page loads
+document.addEventListener('DOMContentLoaded', function() {
+    startLiveMonitoring();
+});
+
+// Add CSS for smooth animations and pulse effects
+const style = document.createElement('style');
+style.textContent = `
+    .activity-item {
+        transition: all 0.3s ease;
+    }
+    .activity-item:hover {
+        background-color: #f8f9fa;
+        transform: translateX(5px);
+    }
+    .activity-item:first-child {
+        animation: slideIn 0.5s ease-out;
+    }
+    .pulse-animation {
+        animation: pulseGlow 2s ease-in-out infinite;
+    }
+    .pulse {
+        animation: pulseBadge 1.5s ease-in-out infinite;
+    }
+    @keyframes slideIn {
+        from {
+            opacity: 0;
+            transform: translateY(-10px);
+        }
+        to {
+            opacity: 1;
+            transform: translateY(0);
+        }
+    }
+    @keyframes pulseGlow {
+        0%, 100% {
+            background-color: rgba(40, 167, 69, 0.1);
+            border-left: 3px solid transparent;
+        }
+        50% {
+            background-color: rgba(40, 167, 69, 0.2);
+            border-left: 3px solid #28a745;
+        }
+    }
+    @keyframes pulseBadge {
+        0%, 100% {
+            transform: scale(1);
+            opacity: 1;
+        }
+        50% {
+            transform: scale(1.1);
+            opacity: 0.8;
+        }
+    }
+    .badge-success {
+        background-color: #28a745 !important;
+    }
+    .badge-warning {
+        background-color: #ffc107 !important;
+        color: #212529 !important;
+    }
+`;
+document.head.appendChild(style);
+</script>
+{% endblock %}

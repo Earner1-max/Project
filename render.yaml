@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: telegram-bot-admin
+    env: python
+    plan: free
+    buildCommand: pip install aiogram flask requests
+    startCommand: python admin_app.py
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
+    
+  - type: worker
+    name: telegram-bot
+    env: python
+    plan: free
+    buildCommand: pip install aiogram flask requests
+    startCommand: python main.py
+    envVars:
+      - key: BOT_TOKEN
+        sync: false
